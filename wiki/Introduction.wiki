@@ -12,9 +12,9 @@ This project is for plugins for [http://jquery.com/ jQuery] that enable you to g
 
 Processing RDF embedded within web pages involves using a large number of other technologies that aren't particularly well supported in Javascript or jQuery. Some of these plugins may be useful even if you're not using RDF. The plugins are:
 
-  * `jquery.uri.js` for parsing and resolving URIs
-  * `jquery.xmlns.js` for resolving namespaces within HTML pages
-  * `jquery.datatype.js` for defining and validating values of different datatypes
-  * `jquery.curie.js` for processing [http://www.w3.org/TR/curie/ CURIEs]
-  * `jquery.rdf.js` for storing and querying RDF triples
-  * `jquery.rdfa.js` for generating RDF triples from RDFa
+  * [URIPlugin jquery.uri.js] for parsing and resolving URIs
+  * [XmlnsPlugin jquery.xmlns.js] for resolving namespaces within HTML pages
+  * [DatatypePlugin jquery.datatype.js] for defining and validating values of different datatypes
+  * [CuriePlugin jquery.curie.js] for processing [http://www.w3.org/TR/curie/ CURIEs]
+  * [RdfPlugin jquery.rdf.js] for storing and querying RDF triples
+  * [RdfaPlugin jquery.rdfa.js] for generating RDF triples from RDFa
