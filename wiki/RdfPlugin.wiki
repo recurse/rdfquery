@@ -1,11 +1,206 @@
 #summary Description of the RDF Plugin
 
-= Introduction =
+= jQuery.rdf.js =
 
-The purpose of the RDF Plugin is to allow you to create, store and query RDF triples in a jQuery-like way. There are several objects within the RDF Plugin:
+The purpose of the RDF Plugin is to allow you to create, store and query RDF triples in a jQuery-like way.
 
-  * [#Literal jQuery.rdf.literal] for literal values
-  * [#Blank jQuery.rdf.blank] for blank values
-  * [#Resource jQuery.rdf.resource] for resources
-  * [#Triple jQuery.rdf.triple] for triples
-  * [#RDF jQuery.rdf] for utility methods
+There are two ways of creating a triple store: creating it by hand or creating it by gleaning information from the web page.
+
+= Creating a Triple Store By Hand =
+
+You can create a triple store by hand using the syntax:
+
+{{{
+$.rdf(array[, options])
+}}}
+
+The array that you pass to `$.rdf()` can be an array of strings or an array of `$.rdf.triple` objects. For example, you can do:
+
+{{{
+$.rdf([
+		'<photo1.jpg> dc:creator <http://www.blogger.com/profile/1109404> .',
+		'<http://www.blogger.com/profile/1109404> foaf:img <photo1.jpg> .'
+	], 
+	{ base: 'http://www.example.org/',
+		namespaces: { 
+			dc: 'http://purl.org/dc/elements/1.1/', 
+			foaf: 'http://xmlns.com/foaf/0.1/' } })
+}}}
+
+The strings in the array use a simplified version of the [http://www.dajobe.org/2004/01/turtle/ Turtle] statement syntax. The base URI for resolving any relative URIs in those statements is provided by the `base` option, and defaults to the base URI of the source document (which may be specified using the `<base>` element in the document's `<head>`). The namespace bindings for resolving the prefixes used in those statements are provided by the `namespaces` option.
+	
+In the above case, the triples that are generated will be:
+
+{{{
+<http://www.example.org/photo1.jpg> <http://purl.org/dc/elements/1.1/creator> <http://www.blogger.com/profile/1109404> .
+<http://www.blogger.com/profile/1109404> <http://xmlns.com/foaf/0.1/img> <http://www.example.org/photo1.jpg> .
+}}}
+
+Or you can do:
+
+{{{
+$.rdf([
+	$.rdf.triple('_:book1 dc:title "SPARQL Tutorial" .', {
+		namespaces: { dc: 'http://purl.org/dc/elements/1.1/' }}),
+	$.rdf.triple('_:book1  ns:price  42 .', {
+		namespaces: { ns: 'http://www.example.org/ns/' }})])
+}}}
+
+This will produce the triples:
+
+{{{
+_:book1 <http://purl.org/dc/elements/1.1/title> "SPARQL Tutorial" .
+_:book1 <http://www.example.org/ns/price> 42 .
+}}}
+
+In this case, the subject of both triples is a blank node with the id `book1`. The object of the first triple is a plain literal and the object of the second triple is the integer 42.
+
+There are two ways of calling `$.rdf.triple()`. You can use the syntax:
+
+{{{
+$.rdf.triple(string[, options])
+}}}
+
+or the syntax:
+
+{{{
+$.rdf.triple(subject, property, object[, options])
+}}}
+
+In the latter case, the subject, property and object can be strings or you can create resources, blank nodes and literal values directly. For example, the triple:
+
+{{{
+_:book1 <http://www.example.org/ns/price> 42 .
+}}}
+
+could be created using:
+
+{{{
+$.rdf.triple(
+	$.rdf.blank('_:book1'), 
+	$.rdf.resource('ns:price', { namespaces: { ns: 'http://www.example.org/ns/' }}),
+	$.rdf.literal(42))
+}}}
+
+= Creating a Triple Store From HTML =
+
+Triple stores can be created based on elements in the page using "gleaners". To create a triple store based on an element, you can use the `rdf()` method on a jQuery object. Gleaners are functions that operate on jQuery objects and generate triples. An example is the RDFa gleaner, which interprets the RDFa that is embedded within a web page. For example, if you are using the RDFa gleaner and your page contains:
+
+{{{
+<p id="info">This paper was written by <span rel="dc:creator" resource="#me"><span property="foaf:name">Ben Adida</span>.</span></p>
+}}}
+
+you could do:
+
+{{{
+$('#info').rdf()
+}}}
+
+to create a triple store that contains the triples:
+
+{{{
+<> dc:creator <#me> .
+<#me> foaf:name "Ben Adida" .
+}}}
+
+Gleaners can be added on an adhoc basis within plugins. For example, to add RDFa processing to the normal `rdf()` method, the RDFa plugin contains the line:
+
+{{{
+$.rdf.gleaners.push(rdfa);
+}}}
+
+where `rdfa` is a reference to a function that does the gleaning. Have a look at `jquery.rdfa.js` to see this in more detail. Additional gleaners could be written for microformats, for example.
+
+= Querying RDF =
+
+Once you have a triple store, the `jquery.rdf.js` plugin helps you to query it. The parallel aims here are:
+
+  * to provide a similar, simple interface for querying RDF as that jQuery gives you for querying the HTML DOM
+  * to support the same level of querying of RDF within Javascript as that offered by SPARQL
+
+This is probably easiest demonstrated using an example. Say that you wanted to find out all the people that have been mentioned within a particular section of your page, and that those people had (through RDFa or microformats) been marked as `foaf:Person` and some people also had depictions on the page. You could create a list of people's images using:
+
+{{{
+opts = { namespaces: { foaf: 'http://xmlns.com/foaf/0.1/' }};
+$('#list').empty();
+$('#content')
+	.rdf()
+	.where('?person a foaf:Person', opts)
+	.where('?person foaf:depiction ?picture', opts)
+	.each(function (index, match) {
+		var 
+			person = match.bindings.person.uri,
+			picture = match.bindings.picture.uri;
+		$('#list')
+			.append('<li><a href="' + person + '"><img src="' + picture + '" /></a></li>');
+	});
+}}}
+
+Just as jQuery objects hold elements, an rdfQuery object holds a set of matches. Initially the set of matches is empty, but the `where()` method will populate the set of matches with objects that have two properties: `bindings` (which are sets of name/value bindings) and `triples` (which are arrays of triples that contribute to the bindings).
+
+You can access these matches in several ways:
+
+  * through simple indexing; for example `$('#content').rdf().where('?person a foaf:Person', opts)[0]` will give you the first match
+  * through the `get()` method, which also returns a match: `$('#content').rdf().where('?person a foaf:Person', opts).get(0)` returns the first match
+	* through the `bindings()` method, which returns an array of bindings: `$('#content').rdf().where('?person a foaf:Person', opts).bindings()` returns an array of objects, each with a `person` property
+	* through the `triples()` method, which returns an array of arrays of triples: `$('#content').rdf().where('?person a foaf:Person', opts).triples()` returns an array of triples, each with `subject`, `property` and `object` properties
+	* through the `each()` method, which executes a function on each match, as illustrated above
+
+The matches can be chained, as shown above, and can be filtered with the `filter()` method. There are three patterns of use of the `filter()` method. The first is to filter the matches based on a value:
+
+{{{
+$('#content')
+	.rdf()
+	.where('?person foaf:surname ?surname', opts)
+	.filter('surname', 'Jones')
+	.each(...);
+}}}
+
+The second also filters by value according to a regular expression. For example:
+
+{{{
+$('#content')
+	.rdf()
+	.where('?person foaf:surname ?surname', opts)
+	.filter('surname', /^Ma?c/)
+	.each(...);
+}}}
+
+finds people with typically Scottish surnames such as `McFee` or `Macdonald`.
+
+The third way of filtering is with a function that returns true for those matches you want to keep, based on the bindings. For example:
+
+{{{
+$('#content')
+	.rdf()
+	.where('?person foaf:surname ?surname', opts)
+	.filter(function (bindings) {
+		return bindings.person.blank;
+	})
+	.each(...)
+}}}
+
+finds those people that are represented by a blank node within the RDF.
+
+A final thing that you can do with an rdfQuery object is add new triples to it, which may be based on the triples that you have located. For example, you can do:
+
+{{{
+var rdf = $('#content').rdf();
+rdf
+	.where('?person foaf:depiction ?photo', opts)
+	.each(function (match) {
+		rdf.add($.rdf.triple(match.bindings.photo, 'foaf:depicts', match.bindings.person, opts));
+	});
+}}}
+
+Note that adding triples to an rdfQuery object may actually change the number of matches that it contains. For example:
+
+{{{
+$.rdf([
+		'<photo1.jpg> dc:creator <http://www.blogger.com/profile/1109404> .',
+		'<http://www.blogger.com/profile/1109404> foaf:img <photo1.jpg> .'
+	], opts)
+	.where('?photo dc:creator <http://www.blogger.com/profile/1109404>', opts) // rdfQuery object has one match
+	.add('<photo2.jpg> dc:creator <http://www.blogger.com/profile/1109404> .', opts) // rdfQuery object now has two matches
+	.each(...);
+}}}
