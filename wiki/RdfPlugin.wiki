@@ -18,17 +18,16 @@ The array that you pass to `$.rdf()` can be an array of strings or an array of `
 
 {{{
 $.rdf([
-		'<photo1.jpg> dc:creator <http://www.blogger.com/profile/1109404> .',
-		'<http://www.blogger.com/profile/1109404> foaf:img <photo1.jpg> .'
-	], 
-	{ base: 'http://www.example.org/',
-		namespaces: { 
-			dc: 'http://purl.org/dc/elements/1.1/', 
-			foaf: 'http://xmlns.com/foaf/0.1/' } })
+    '<photo1.jpg> dc:creator <http://www.blogger.com/profile/1109404> .',
+    '<http://www.blogger.com/profile/1109404> foaf:img <photo1.jpg> .'
+  ], 
+  { base: 'http://www.example.org/',
+    namespaces: { 
+      dc: 'http://purl.org/dc/elements/1.1/', 
+      foaf: 'http://xmlns.com/foaf/0.1/' } })
 }}}
 
-The strings in the array use a simplified version of the [http://www.dajobe.org/2004/01/turtle/ Turtle] statement syntax. The base URI for resolving any relative URIs in those statements is provided by the `base` option, and defaults to the base URI of the source document (which may be specified using the `<base>` element in the document's `<head>`). The namespace bindings for resolving the prefixes used in those statements are provided by the `namespaces` option.
-	
+The strings in the array use a simplified version of the [http://www.dajobe.org/2004/01/turtle/ Turtle] statement syntax.  
 In the above case, the triples that are generated will be:
 
 {{{
@@ -36,14 +35,16 @@ In the above case, the triples that are generated will be:
 <http://www.blogger.com/profile/1109404> <http://xmlns.com/foaf/0.1/img> <http://www.example.org/photo1.jpg> .
 }}}
 
+The base URI for resolving any relative URIs in those statements is provided by the `base` option, and defaults to the base URI of the source document (which may be specified using the `<base>` element in the document's `<head>`). The namespace bindings for resolving the prefixes used in those statements are provided by the `namespaces` option. If you supply a second argument when creating the triple store, the base URI and prefix bindings that you specify will be stored and can be used later on when you query the triple store.
+
 Or you can do:
 
 {{{
 $.rdf([
-	$.rdf.triple('_:book1 dc:title "SPARQL Tutorial" .', {
-		namespaces: { dc: 'http://purl.org/dc/elements/1.1/' }}),
-	$.rdf.triple('_:book1  ns:price  42 .', {
-		namespaces: { ns: 'http://www.example.org/ns/' }})])
+  $.rdf.triple('_:book1 dc:title "SPARQL Tutorial" .', {
+    namespaces: { dc: 'http://purl.org/dc/elements/1.1/' }}),
+  $.rdf.triple('_:book1  ns:price  42 .', {
+    namespaces: { ns: 'http://www.example.org/ns/' }})])
 }}}
 
 This will produce the triples:
@@ -77,10 +78,18 @@ could be created using:
 
 {{{
 $.rdf.triple(
-	$.rdf.blank('_:book1'), 
-	$.rdf.resource('ns:price', { namespaces: { ns: 'http://www.example.org/ns/' }}),
-	$.rdf.literal(42))
+  $.rdf.blank('_:book1'), 
+  $.rdf.resource('ns:price', { namespaces: { ns: 'http://www.example.org/ns/' }}),
+  $.rdf.literal(42))
 }}}
+
+The three kinds of values that you can use for subjects, properties and objects are:
+
+  * blank nodes, which have an `id`
+  * resources, which have a `uri`
+  * literals, which have a `value` and may have a `datatype` (which is a URI) or a `lang`
+
+The property `resource` is true if the value is a resource, and the property `blank` is true if the value is a blank node. For example, you could use `triple.subject.blank` to test whether the subject of a triple is a blank node.
 
 = Creating a Triple Store From HTML =
 
@@ -121,49 +130,51 @@ Once you have a triple store, the `jquery.rdf.js` plugin helps you to query it. 
 This is probably easiest demonstrated using an example. Say that you wanted to find out all the people that have been mentioned within a particular section of your page, and that those people had (through RDFa or microformats) been marked as `foaf:Person` and some people also had depictions on the page. You could create a list of people's images using:
 
 {{{
-opts = { namespaces: { foaf: 'http://xmlns.com/foaf/0.1/' }};
 $('#list').empty();
 $('#content')
-	.rdf()
-	.where('?person a foaf:Person', opts)
-	.where('?person foaf:depiction ?picture', opts)
-	.each(function (index, match) {
-		var 
-			person = match.bindings.person.uri,
-			picture = match.bindings.picture.uri;
-		$('#list')
-			.append('<li><a href="' + person + '"><img src="' + picture + '" /></a></li>');
-	});
+  .rdf()
+  .prefix('foaf', 'http://xmlns.com/foaf/0.1/')
+  .where('?person a foaf:Person')
+  .where('?person foaf:depiction ?picture')
+  .each(function (index, match) {
+    var 
+      person = match.bindings.person.uri,
+      picture = match.bindings.picture.uri;
+    $('#list')
+      .append('<li><a href="' + person + '"><img src="' + picture + '" /></a></li>');
+  });
 }}}
 
-Just as jQuery objects hold elements, an rdfQuery object holds a set of matches. Initially the set of matches is empty, but the `where()` method will populate the set of matches with objects that have two properties: `bindings` (which are sets of name/value bindings) and `triples` (which are arrays of triples that contribute to the bindings).
+Just as jQuery objects hold elements, an rdfQuery object holds a set of matches. Initially the set of matches is empty, but the `where()` method will populate the set of matches with objects that have two properties: `bindings` (which are sets of name/value bindings) and `triples` (which are arrays of triples that contribute to the bindings). Note that the `prefix()` method can be used to bind a prefix prior to using that prefix within a `where()` query. The `base()` method can also be used for setting the base URI used to interpret relative URIs within the `where()` queries.
 
-You can access these matches in several ways:
+You can access matches in several ways:
 
-  * through simple indexing; for example `$('#content').rdf().where('?person a foaf:Person', opts)[0]` will give you the first match
-  * through the `get()` method, which also returns a match: `$('#content').rdf().where('?person a foaf:Person', opts).get(0)` returns the first match
-	* through the `bindings()` method, which returns an array of bindings: `$('#content').rdf().where('?person a foaf:Person', opts).bindings()` returns an array of objects, each with a `person` property
-	* through the `triples()` method, which returns an array of arrays of triples: `$('#content').rdf().where('?person a foaf:Person', opts).triples()` returns an array of triples, each with `subject`, `property` and `object` properties
-	* through the `each()` method, which executes a function on each match, as illustrated above
+  * through simple indexing; for example `.where('?person a foaf:Person')[0]` will give you the first match
+  * through the `get()` method, which also returns a match: `.where('?person a foaf:Person', opts).get(0)` returns the first match
+  * through the `bindings()` method, which returns an array of bindings: `.where('?person a foaf:Person', opts).bindings()` returns an array of objects, each with a `person` property
+  * through the `triples()` method, which returns an array of arrays of triples: `.where('?person a foaf:Person', opts).triples()` returns an array of triples, each with `subject`, `property` and `object` properties
+  * through the `each()` method, which executes a function on each match, as illustrated above
 
 The matches can be chained, as shown above, and can be filtered with the `filter()` method. There are three patterns of use of the `filter()` method. The first is to filter the matches based on a value:
 
 {{{
 $('#content')
-	.rdf()
-	.where('?person foaf:surname ?surname', opts)
-	.filter('surname', 'Jones')
-	.each(...);
+  .rdf()
+  .prefix('foaf', 'http://xmlns.com/foaf/0.1/')
+  .where('?person foaf:surname ?surname')
+  .filter('surname', 'Jones')
+  .each(...);
 }}}
 
 The second also filters by value according to a regular expression. For example:
 
 {{{
 $('#content')
-	.rdf()
-	.where('?person foaf:surname ?surname', opts)
-	.filter('surname', /^Ma?c/)
-	.each(...);
+  .rdf()
+  .prefix('foaf', 'http://xmlns.com/foaf/0.1/')
+  .where('?person foaf:surname ?surname')
+  .filter('surname', /^Ma?c/)
+  .each(...);
 }}}
 
 finds people with typically Scottish surnames such as `McFee` or `Macdonald`.
@@ -172,12 +183,13 @@ The third way of filtering is with a function that returns true for those matche
 
 {{{
 $('#content')
-	.rdf()
-	.where('?person foaf:surname ?surname', opts)
-	.filter(function (bindings) {
-		return bindings.person.blank;
-	})
-	.each(...)
+  .rdf()
+  .prefix('foaf', 'http://xmlns.com/foaf/0.1/')
+  .where('?person foaf:surname ?surname')
+  .filter(function (bindings) {
+    return bindings.person.blank;
+  })
+  .each(...)
 }}}
 
 finds those people that are represented by a blank node within the RDF.
@@ -185,22 +197,24 @@ finds those people that are represented by a blank node within the RDF.
 A final thing that you can do with an rdfQuery object is add new triples to it, which may be based on the triples that you have located. For example, you can do:
 
 {{{
+var opts = { namespaces: { foaf: 'http://xmlns.com/foaf/0.1/'}};
 var rdf = $('#content').rdf();
 rdf
-	.where('?person foaf:depiction ?photo', opts)
-	.each(function (match) {
-		rdf.add($.rdf.triple(match.bindings.photo, 'foaf:depicts', match.bindings.person, opts));
-	});
+	.prefix('foaf', 'http://xmlns.com/foaf/0.1/')
+  .where('?person foaf:depiction ?photo', opts)
+  .each(function (match) {
+    rdf.add($.rdf.triple(match.bindings.photo, 'foaf:depicts', match.bindings.person, opts));
+  });
 }}}
 
 Note that adding triples to an rdfQuery object may actually change the number of matches that it contains. For example:
 
 {{{
 $.rdf([
-		'<photo1.jpg> dc:creator <http://www.blogger.com/profile/1109404> .',
-		'<http://www.blogger.com/profile/1109404> foaf:img <photo1.jpg> .'
-	], opts)
-	.where('?photo dc:creator <http://www.blogger.com/profile/1109404>', opts) // rdfQuery object has one match
-	.add('<photo2.jpg> dc:creator <http://www.blogger.com/profile/1109404> .', opts) // rdfQuery object now has two matches
-	.each(...);
+    '<photo1.jpg> dc:creator <http://www.blogger.com/profile/1109404> .',
+    '<http://www.blogger.com/profile/1109404> foaf:img <photo1.jpg> .'
+  ], { namespaces: { foaf: 'http://xmlns.com/foaf/0.1/'}})
+  .where('?photo dc:creator <http://www.blogger.com/profile/1109404>') // rdfQuery object has one match
+  .add('<photo2.jpg> dc:creator <http://www.blogger.com/profile/1109404> .') // rdfQuery object now has two matches
+  .each(...);
 }}}
