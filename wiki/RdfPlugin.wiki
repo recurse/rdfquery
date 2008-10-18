@@ -1,0 +1,11 @@
+#summary Description of the RDF Plugin
+
+= Introduction =
+
+The purpose of the RDF Plugin is to allow you to create, store and query RDF triples in a jQuery-like way. There are several objects within the RDF Plugin:
+
+  * [#Literal jQuery.rdf.literal] for literal values
+  * [#Blank jQuery.rdf.blank] for blank values
+  * [#Resource jQuery.rdf.resource] for resources
+  * [#Triple jQuery.rdf.triple] for triples
+  * [#RDF jQuery.rdf] for utility methods
