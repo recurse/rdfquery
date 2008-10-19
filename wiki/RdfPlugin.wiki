@@ -37,7 +37,20 @@ In the above case, the triples that are generated will be:
 
 The base URI for resolving any relative URIs in those statements is provided by the `base` option, and defaults to the base URI of the source document (which may be specified using the `<base>` element in the document's `<head>`). The namespace bindings for resolving the prefixes used in those statements are provided by the `namespaces` option. If you supply a second argument when creating the triple store, the base URI and prefix bindings that you specify will be stored and can be used later on when you query the triple store.
 
-Or you can do:
+The `prefix()` method can be used to bind a prefix prior to using that prefix, and the `base()` method can also be used for setting the base URI used to interpret relative URIs. The `add()` method can be used to add triples individually, so the above could also be done with:
+
+{{{
+$.rdf()
+	.base('http://www.example.org/')
+	.prefix('dc', 'http://purl.org/dc/elements/1.1/')
+	.prefix('foaf', 'http://xmlns.com/foaf/0.1/')
+  .add('<photo1.jpg> dc:creator <http://www.blogger.com/profile/1109404> .')
+  .add('<http://www.blogger.com/profile/1109404> foaf:img <photo1.jpg> .')
+}}}
+
+which follows a more jQuery-like pattern.
+
+If you're creating triples programmatically, you might find it easier to pass those triples in more directly. You can do:
 
 {{{
 $.rdf([
@@ -149,16 +162,6 @@ $('#content')
 
 Just as jQuery objects hold elements, an rdfQuery object holds a set of matches. Initially the set of matches is empty, but the `where()` method will populate the set of matches with objects that have two properties: `bindings` (which are sets of name/value bindings) and `triples` (which are arrays of triples that contribute to the bindings). The `optional()` method works in a similar way, but doesn't remove any existing matches if the match for the optional query can't be found.
 
-Note that the `prefix()` method can be used to bind a prefix prior to using that prefix within a `where()` query. The `base()` method can also be used for setting the base URI used to interpret relative URIs within the `where()` queries.
-
-You can access matches in several ways:
-
-  * through simple indexing; for example `.where('?person a foaf:Person')[0]` will give you the first match
-  * through the `get()` method, which also returns a match: `.where('?person a foaf:Person', opts).get(0)` returns the first match
-  * through the `bindings()` method, which returns an array of bindings: `.where('?person a foaf:Person', opts).bindings()` returns an array of objects, each with a `person` property
-  * through the `triples()` method, which returns an array of arrays of triples: `.where('?person a foaf:Person', opts).triples()` returns an array of triples, each with `subject`, `property` and `object` properties
-  * through the `each()` method, which executes a function on each match, as illustrated above
-
 The matches can be chained, as shown above, and can be filtered with the `filter()` method. There are three patterns of use of the `filter()` method. The first is to filter the matches based on a value:
 
 {{{
@@ -198,27 +201,44 @@ $('#content')
 
 finds those people that are represented by a blank node within the RDF.
 
-A final thing that you can do with an rdfQuery object is add new triples to it, which may be based on the triples that you have located. For example, you can do:
-
-{{{
-var opts = { namespaces: { foaf: 'http://xmlns.com/foaf/0.1/'}};
-var rdf = $('#content').rdf();
-rdf
-	.prefix('foaf', 'http://xmlns.com/foaf/0.1/')
-  .where('?person foaf:depiction ?photo', opts)
-  .each(function (match) {
-    rdf.add($.rdf.triple(match.bindings.photo, 'foaf:depicts', match.bindings.person, opts));
-  });
-}}}
-
 Note that adding triples to an rdfQuery object may actually change the number of matches that it contains. For example:
 
 {{{
-$.rdf([
-    '<photo1.jpg> dc:creator <http://www.blogger.com/profile/1109404> .',
-    '<http://www.blogger.com/profile/1109404> foaf:img <photo1.jpg> .'
-  ], { namespaces: { foaf: 'http://xmlns.com/foaf/0.1/'}})
+$.rdf()
+	.prefix('foaf', 'http://xmlns.com/foaf/0.1/')
+	.add('<photo1.jpg> dc:creator <http://www.blogger.com/profile/1109404> .')
+  .add('<http://www.blogger.com/profile/1109404> foaf:img <photo1.jpg> .')
   .where('?photo dc:creator <http://www.blogger.com/profile/1109404>') // rdfQuery object has one match
   .add('<photo2.jpg> dc:creator <http://www.blogger.com/profile/1109404> .') // rdfQuery object now has two matches
   .each(...);
 }}}
+
+= Doing Things with Matches =
+
+Once you've got your collection of matches, you can do things with it. Say you did:
+
+{{{
+rdf = 
+	$('#content')
+		.rdf()
+		.prefix('foaf', 'http://xmlns.com/foaf/0.1/')
+		.where('?person a foaf:Person');
+}}}
+
+The rdfQuery object behaves in a similar way to a jQuery object. You can access it like an array: `rdf.length` will give you the number of matches, while `rdf[0]` will give you the first match. You can do these two operations with functions if you prefer: `rdf.size()` will give you the number of matches and `rdf.get(0)` will give you the first match.
+
+You can get hold of the bindings and triples directly using `rdf.bindings()` and `rdf.triples()`, each of which returns a jQuery object wrapped around the array of bindings and triples. For example, you can do:
+
+{{{
+photos = rdf.bindings().map(function () { return this.photo.uri; });
+}}}
+
+You can operate on each of the matches using `rdf.each()` and `rdf.map()`. Like the equivalent jQuery methods, `rdf.each()` performs a given callback function on each of the matches within the rdfQuery object, while `rdf.map()` creates a jQuery object that wraps an array generated by applying the callback function to each match in turn and concatenating the results. For example, you could do:
+
+{{{
+photos = rdf.map(function () { return this.bindings.photo.uri; });
+}}}
+
+and it would give you exactly the same results as you get using `rdf.bindings().map()` as shown above.
+
+Finally, you can simply generate a jQuery object based on the rdfQuery object, using `rdf.jquery()`. The full set of jQuery methods are then available to you.
