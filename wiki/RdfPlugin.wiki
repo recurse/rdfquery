@@ -1,4 +1,5 @@
 #summary Description of the RDF Plugin
+#labels Featured
 
 = jQuery.rdf.js =
 
