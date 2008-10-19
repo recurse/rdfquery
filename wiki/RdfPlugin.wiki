@@ -136,16 +136,20 @@ $('#content')
   .prefix('foaf', 'http://xmlns.com/foaf/0.1/')
   .where('?person a foaf:Person')
   .where('?person foaf:depiction ?picture')
+	.optional('?person foaf:name ?name')
   .each(function (index, match) {
     var 
       person = match.bindings.person.uri,
-      picture = match.bindings.picture.uri;
+      picture = match.bindings.picture.uri,
+      name = match.bindings.name === undefined ? '' : match.bindings.name.value;
     $('#list')
-      .append('<li><a href="' + person + '"><img src="' + picture + '" /></a></li>');
+      .append('<li><a href="' + person + '"><img alt="' + name + '" src="' + picture + '" /></a></li>');
   });
 }}}
 
-Just as jQuery objects hold elements, an rdfQuery object holds a set of matches. Initially the set of matches is empty, but the `where()` method will populate the set of matches with objects that have two properties: `bindings` (which are sets of name/value bindings) and `triples` (which are arrays of triples that contribute to the bindings). Note that the `prefix()` method can be used to bind a prefix prior to using that prefix within a `where()` query. The `base()` method can also be used for setting the base URI used to interpret relative URIs within the `where()` queries.
+Just as jQuery objects hold elements, an rdfQuery object holds a set of matches. Initially the set of matches is empty, but the `where()` method will populate the set of matches with objects that have two properties: `bindings` (which are sets of name/value bindings) and `triples` (which are arrays of triples that contribute to the bindings). The `optional()` method works in a similar way, but doesn't remove any existing matches if the match for the optional query can't be found.
+
+Note that the `prefix()` method can be used to bind a prefix prior to using that prefix within a `where()` query. The `base()` method can also be used for setting the base URI used to interpret relative URIs within the `where()` queries.
 
 You can access matches in several ways:
 
