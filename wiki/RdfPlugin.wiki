@@ -42,9 +42,9 @@ The `prefix()` method can be used to bind a prefix prior to using that prefix, a
 
 {{{
 $.rdf()
-	.base('http://www.example.org/')
-	.prefix('dc', 'http://purl.org/dc/elements/1.1/')
-	.prefix('foaf', 'http://xmlns.com/foaf/0.1/')
+  .base('http://www.example.org/')
+  .prefix('dc', 'http://purl.org/dc/elements/1.1/')
+  .prefix('foaf', 'http://xmlns.com/foaf/0.1/')
   .add('<photo1.jpg> dc:creator <http://www.blogger.com/profile/1109404> .')
   .add('<http://www.blogger.com/profile/1109404> foaf:img <photo1.jpg> .')
 }}}
@@ -150,7 +150,7 @@ $('#content')
   .prefix('foaf', 'http://xmlns.com/foaf/0.1/')
   .where('?person a foaf:Person')
   .where('?person foaf:depiction ?picture')
-	.optional('?person foaf:name ?name')
+  .optional('?person foaf:name ?name')
   .each(function (index, match) {
     var 
       person = match.bindings.person.uri,
@@ -202,12 +202,31 @@ $('#content')
 
 finds those people that are represented by a blank node within the RDF.
 
+If you want to "rewind" any `where()`, `optional()` or `filter()` filters, you can do so with `end()`, which works in a similar way to `jQuery.end()`. So you can do:
+
+{{{
+$('#content')
+  .rdf()
+  .prefix('foaf', 'http://xmlns.com/foaf/0.1/')
+  .where('?person foaf:surname ?surname')
+    .filter('surname', /^Ma?c/)
+      .each(function () { alert('Scottish: ' + this.bindings.surname.value )})
+    .end()
+    .filter('surname', /^O'/)
+      .each(function () { alert('Irish: ' + this.bindings.surname.value )})
+    .end();
+}}}
+
+which will alert you to Scottish-looking surnames, and then Irish-looking surnames.
+
+If you want to reset the rdfQuery object completely, removing all the filters that you've applied to it, you can use the `reset()` method. It is more efficient to use the `reset()` method than to use `end()` repeatedly to remove the filters individually, particularly if you added triples after applying a filter.
+
 Note that adding triples to an rdfQuery object may actually change the number of matches that it contains. For example:
 
 {{{
 $.rdf()
-	.prefix('foaf', 'http://xmlns.com/foaf/0.1/')
-	.add('<photo1.jpg> dc:creator <http://www.blogger.com/profile/1109404> .')
+  .prefix('foaf', 'http://xmlns.com/foaf/0.1/')
+  .add('<photo1.jpg> dc:creator <http://www.blogger.com/profile/1109404> .')
   .add('<http://www.blogger.com/profile/1109404> foaf:img <photo1.jpg> .')
   .where('?photo dc:creator <http://www.blogger.com/profile/1109404>') // rdfQuery object has one match
   .add('<photo2.jpg> dc:creator <http://www.blogger.com/profile/1109404> .') // rdfQuery object now has two matches
@@ -261,11 +280,11 @@ Once you've got your collection of matches, you can do things with it. Say you d
 
 {{{
 rdf = 
-	$('#content')
-		.rdf()
-		.prefix('foaf', 'http://xmlns.com/foaf/0.1/')
-		.where('?person a foaf:Person')
-		.where('?photo foaf:depicts ?person');
+  $('#content')
+    .rdf()
+    .prefix('foaf', 'http://xmlns.com/foaf/0.1/')
+    .where('?person a foaf:Person')
+    .where('?photo foaf:depicts ?person');
 }}}
 
 The rdfQuery object behaves in a similar way to a jQuery object. You can access it like an array: `rdf.length` will give you the number of matches, while `rdf[0]` will give you the first match. You can do these two operations with functions if you prefer: `rdf.size()` will give you the number of matches and `rdf.get(0)` will give you the first match.
@@ -274,7 +293,7 @@ You can create new triples based on the matches that you've found by passing a t
 
 {{{
 rdf.add('?person foaf:depiction ?photo')
-	.add('?photo a foaf:Image');
+  .add('?photo a foaf:Image');
 }}}
 
 This will add triples for every photo, saying that it is a depiction of the given person (based on the fact that foaf:depiction is the inverse of foaf:depicts) and that it is a foaf:Image (based on the fact that the range of foaf:depicts if foaf:Image). This facility allows you to do basic reasoning with rdfQuery.
