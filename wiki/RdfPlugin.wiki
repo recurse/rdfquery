@@ -263,10 +263,20 @@ rdf =
 	$('#content')
 		.rdf()
 		.prefix('foaf', 'http://xmlns.com/foaf/0.1/')
-		.where('?person a foaf:Person');
+		.where('?person a foaf:Person')
+		.where('?photo foaf:depicts ?person');
 }}}
 
 The rdfQuery object behaves in a similar way to a jQuery object. You can access it like an array: `rdf.length` will give you the number of matches, while `rdf[0]` will give you the first match. You can do these two operations with functions if you prefer: `rdf.size()` will give you the number of matches and `rdf.get(0)` will give you the first match.
+
+You can create new triples based on the matches that you've found by passing a template to the `add()` method. For example, you can do:
+
+{{{
+rdf.add('?person foaf:depiction ?photo')
+	.add('?photo a foaf:Image');
+}}}
+
+This will add triples for every photo, saying that it is a depiction of the given person (based on the fact that foaf:depiction is the inverse of foaf:depicts) and that it is a foaf:Image (based on the fact that the range of foaf:depicts if foaf:Image). This facility allows you to do basic reasoning with rdfQuery.
 
 You can get hold of the bindings and triples directly using `rdf.bindings()` and `rdf.triples()`, each of which returns a jQuery object wrapped around the array of bindings and triples. For example, you can do:
 
