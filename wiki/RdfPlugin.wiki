@@ -213,6 +213,47 @@ $.rdf()
   .each(...);
 }}}
 
+If you want to perform two parallel queries on a set of triples, you will need to clone the triplestore. For example:
+
+{{{
+var rdf = $.rdf()
+  .prefix('dc10', 'http://purl.org/dc/elements/1.0/')
+  .prefix('dc11', 'http://purl.org/dc/elements/1.1/>')
+  .add('_:a  dc10:title     "SPARQL Query Language Tutorial" .')
+  .add('_:a  dc10:creator   "Alice" .')
+  .add('_:b  dc11:title     "SPARQL Protocol Tutorial" .')
+  .add('_:b  dc11:creator   "Bob" .')
+  .add('_:c  dc10:title     "SPARQL" .')
+  .add('_:c  dc11:title     "SPARQL (updated)" .');
+var rdfA = rdf.clone().where('?book dc10:title ?title');
+var rdfB = rdf.clone().where('?book dc11:title ?title');
+}}}
+
+If you've performed two queries and want to union them together, you can simply add one to the other with the `add()` method:
+
+{{{
+rdf = rdfA.add(rdfB);
+}}}
+
+The triples held by each of the unioned rdfQuery objects aren't actually combined, but the matches are. Any subsequent filtering applies to both of the objects independently. So you could then do:
+
+{{{
+rdf.where('?book dc10:creator ?author');
+}}}
+
+and you would get back a single match for the book `_:a` with the title "SPARQL Query Language Tutorial" and the author Alice. Additions to the union also carry through to the unioned rdfQuery objects, so if you then do:
+
+{{{
+rdf.add('_:c dc10:creator "Claire" .');
+}}}
+
+The result is:
+
+|| *book* || *title* || *author* ||
+|| `_:a` || SPARQL Query Language Tutorial || Alice ||
+|| `_:c` || SPARQL || Claire ||
+|| `_:c` || SPARQL (updated) || Claire ||
+
 = Doing Things with Matches =
 
 Once you've got your collection of matches, you can do things with it. Say you did:
