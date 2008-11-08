@@ -5,20 +5,20 @@
 
 The purpose of the RDF Plugin is to allow you to create, store and query RDF triples in a jQuery-like way.
 
-There are two ways of creating a triple store: creating it by hand or creating it by gleaning information from the web page.
+First, you have to create a databank: a store for RDF triples. You can do this in two ways: create it by hand or create it by gleaning information from the web page.
 
-= Creating a Triple Store By Hand =
+= Creating a Databank by Hand =
 
-You can create a triple store by hand using the syntax:
+You can create a databank by hand using the syntax:
 
 {{{
-$.rdf(array[, options])
+$.rdf.databank(array[, options])
 }}}
 
-The array that you pass to `$.rdf()` can be an array of strings or an array of `$.rdf.triple` objects. For example, you can do:
+The array that you pass to `$.rdf.databank()` can be an array of strings or an array of `$.rdf.triple` objects. For example, you can do:
 
 {{{
-$.rdf([
+$.rdf.databank([
     '<photo1.jpg> dc:creator <http://www.blogger.com/profile/1109404> .',
     '<http://www.blogger.com/profile/1109404> foaf:img <photo1.jpg> .'
   ], 
@@ -41,7 +41,7 @@ The base URI for resolving any relative URIs in those statements is provided by 
 The `prefix()` method can be used to bind a prefix prior to using that prefix, and the `base()` method can also be used for setting the base URI used to interpret relative URIs. The `add()` method can be used to add triples individually, so the above could also be done with:
 
 {{{
-$.rdf()
+$.rdf.databank()
   .base('http://www.example.org/')
   .prefix('dc', 'http://purl.org/dc/elements/1.1/')
   .prefix('foaf', 'http://xmlns.com/foaf/0.1/')
@@ -54,11 +54,13 @@ which follows a more jQuery-like pattern.
 If you're creating triples programmatically, you might find it easier to pass those triples in more directly. You can do:
 
 {{{
-$.rdf([
+$.rdf.databank([
   $.rdf.triple('_:book1 dc:title "SPARQL Tutorial" .', {
-    namespaces: { dc: 'http://purl.org/dc/elements/1.1/' }}),
+    namespaces: { dc: 'http://purl.org/dc/elements/1.1/' }
+  }),
   $.rdf.triple('_:book1  ns:price  42 .', {
-    namespaces: { ns: 'http://www.example.org/ns/' }})])
+    namespaces: { ns: 'http://www.example.org/ns/' }
+  })])
 }}}
 
 This will produce the triples:
@@ -136,7 +138,7 @@ where `rdfa` is a reference to a function that does the gleaning. Have a look at
 
 = Querying RDF =
 
-Once you have a triple store, the `jquery.rdf.js` plugin helps you to query it. The parallel aims here are:
+Once you have a databank, you can create query objects over it. The parallel aims here are:
 
   * to provide a similar, simple interface for querying RDF as that jQuery gives you for querying the HTML DOM
   * to support the same level of querying of RDF within Javascript as that offered by SPARQL
@@ -151,17 +153,64 @@ $('#content')
   .where('?person a foaf:Person')
   .where('?person foaf:depiction ?picture')
   .optional('?person foaf:name ?name')
-  .each(function (index, match) {
+  .each(function ()) {
     var 
-      person = match.bindings.person.uri,
-      picture = match.bindings.picture.uri,
-      name = match.bindings.name === undefined ? '' : match.bindings.name.value;
+      person = this.person.uri,
+      picture = this.picture.uri,
+      name = this.name === undefined ? '' : this.name.value;
     $('#list')
       .append('<li><a href="' + person + '"><img alt="' + name + '" src="' + picture + '" /></a></li>');
   });
 }}}
 
-Just as jQuery objects hold elements, an rdfQuery object holds a set of matches. Initially the set of matches is empty, but the `where()` method will populate the set of matches with objects that have two properties: `bindings` (which are sets of name/value bindings) and `triples` (which are arrays of triples that contribute to the bindings). The `optional()` method works in a similar way, but doesn't remove any existing matches if the match for the optional query can't be found.
+Just as jQuery objects hold elements, an rdfQuery object holds objects that it creates based on queries over the databank that it works over. Using the `rdf()` method on a jQuery object actually creates a new databank, and returns a new top-level query over that object. You can create an rdfQuery object more directly with:
+
+{{{
+$.rdf(options)
+}}}
+
+The options that the `$.rdf()` function accepts include `databank`, to provide a databank directly; `triples` to provide a set of triples for a new databank; `base`, which sets the base URI on the databank; and `namespaces` which provides a set of namespace bindings. You can also populate the databank that a query runs over as if you were working over the databank itself. So you can do:
+
+{{{
+$.rdf()
+  .base('http://www.example.org/')
+  .prefix('dc', 'http://purl.org/dc/elements/1.1/')
+  .prefix('foaf', 'http://xmlns.com/foaf/0.1/')
+  .add('<photo1.jpg> dc:creator <http://www.blogger.com/profile/1109404> .')
+  .add('<http://www.blogger.com/profile/1109404> foaf:img <photo1.jpg> .')
+}}}
+
+rdfQuery objects generally hold collections of objects representing the results of a query. A top-level query doesn't hold any such objects, but the query methods `about()`, `where()`, `optional()` and `filter()` can be used to create, add properties to, or filter out these objects.
+
+The `about()` method creates a set of objects with `property` and `value` properties, one for each piece of data known about the resource that's passed as the argument. For example, if you have:
+
+{{{
+<p id="content" about="[dbpedia:The_Beatles]"><span property="p:name">The Beatles</span> comprised <span rel="p:currentMembers" resource="[dbpedia:John_Lennon]">John</span>, <span rel="p:currentMembers" resource="[dbpedia:Paul_McCartney]">Paul</span>, <span rel="p:currentMembers" resource="[dbpedia:George_Harrison]">George</span> and <span rel="p:currentMembers" resource="[dbpedia:Ringo_Starr]">Ringo</span>.</p>
+}}}
+
+and you do:
+
+{{{
+$('#content')
+  .rdf()
+  .prefix('dbpedia', 'http://dbpedia.org/resource/')
+  .about('dbpedia:The_Beatles')
+}}}
+
+the resulting rdfQuery object will hold five objects, one of whose `property` property is `p:name`, and others whose `property` property is `p:currentMembers`.
+
+The `where()` method creates objects whose properties are named after the variables used in the query and that have values based on the information in the databank. The `optional()` method works in a similar way, but is used for properties that are optional in the query result. In the example
+
+{{{
+$('#content')
+  .rdf()
+  .prefix('foaf', 'http://xmlns.com/foaf/0.1/')
+  .where('?person a foaf:Person')
+  .where('?person foaf:depiction ?picture')
+  .optional('?person foaf:name ?name')
+}}}
+
+the result objects have `person` and `picture` properties, and some may have `name` properties.
 
 The matches can be chained, as shown above, and can be filtered with the `filter()` method. There are three patterns of use of the `filter()` method. The first is to filter the matches based on a value:
 
@@ -187,20 +236,22 @@ $('#content')
 
 finds people with typically Scottish surnames such as `McFee` or `Macdonald`.
 
-The third way of filtering is with a function that returns true for those matches you want to keep, based on the bindings. For example:
+The third way of filtering is with a function that returns true for those matches you want to keep, based on the existing object properties. For example:
 
 {{{
 $('#content')
   .rdf()
   .prefix('foaf', 'http://xmlns.com/foaf/0.1/')
   .where('?person foaf:surname ?surname')
-  .filter(function (bindings) {
-    return bindings.person.blank;
+  .filter(function () {
+    return this.person.blank;
   })
   .each(...)
 }}}
 
 finds those people that are represented by a blank node within the RDF.
+
+The callback function you pass to the `filter()` method can have three arguments: the index of the object being filtered, the object itself, and an array of triples that contributed to the object. `this` is always bound to the result object itself.
 
 If you want to "rewind" any `where()`, `optional()` or `filter()` filters, you can do so with `end()`, which works in a similar way to `jQuery.end()`. So you can do:
 
@@ -210,16 +261,16 @@ $('#content')
   .prefix('foaf', 'http://xmlns.com/foaf/0.1/')
   .where('?person foaf:surname ?surname')
     .filter('surname', /^Ma?c/)
-      .each(function () { alert('Scottish: ' + this.bindings.surname.value )})
+      .each(function () { alert('Scottish: ' + this.surname.value); })
     .end()
     .filter('surname', /^O'/)
-      .each(function () { alert('Irish: ' + this.bindings.surname.value )})
+      .each(function () { alert('Irish: ' + this.surname.value); })
     .end();
 }}}
 
 which will alert you to Scottish-looking surnames, and then Irish-looking surnames.
 
-If you want to reset the rdfQuery object completely, removing all the filters that you've applied to it, you can use the `reset()` method. It is more efficient to use the `reset()` method than to use `end()` repeatedly to remove the filters individually, particularly if you added triples after applying a filter.
+If you want to get back to the top-level rdfQuery object, essentially removing all the filters that you've applied to it, you can use the `reset()` method.
 
 Note that adding triples to an rdfQuery object may actually change the number of matches that it contains. For example:
 
@@ -233,7 +284,7 @@ $.rdf()
   .each(...);
 }}}
 
-If you want to perform two parallel queries on a set of triples, you will need to clone the triplestore. For example:
+If you want to perform two parallel queries on a set of triples, create a top-level query first, and use that as the basis of your subsequent queries::
 
 {{{
 var rdf = $.rdf()
@@ -245,8 +296,8 @@ var rdf = $.rdf()
   .add('_:b  dc11:creator   "Bob" .')
   .add('_:c  dc10:title     "SPARQL" .')
   .add('_:c  dc11:title     "SPARQL (updated)" .');
-var rdfA = rdf.clone().where('?book dc10:title ?title');
-var rdfB = rdf.clone().where('?book dc11:title ?title');
+var rdfA = rdf.where('?book dc10:title ?title');
+var rdfB = rdf.where('?book dc11:title ?title');
 }}}
 
 If you've performed two queries and want to union them together, you can simply add one to the other with the `add()` method:
@@ -255,7 +306,7 @@ If you've performed two queries and want to union them together, you can simply 
 rdf = rdfA.add(rdfB);
 }}}
 
-The triples held by each of the unioned rdfQuery objects aren't actually combined, but the matches are. Any subsequent filtering applies to both of the objects independently. So you could then do:
+You can then filter the resulting union:
 
 {{{
 rdf.where('?book dc10:creator ?author');
@@ -287,29 +338,30 @@ rdf =
     .where('?photo foaf:depicts ?person');
 }}}
 
-The rdfQuery object behaves in a similar way to a jQuery object. You can access it like an array: `rdf.length` will give you the number of matches, while `rdf[0]` will give you the first match. You can do these two operations with functions if you prefer: `rdf.size()` will give you the number of matches and `rdf.get(0)` will give you the first match.
+The rdfQuery object behaves in a similar way to a jQuery object. You can access it like an array: `rdf.length` will give you the number of resulting objects, while `rdf[0]` will give you the first resulting object. You can do these two operations with functions if you prefer: `rdf.size()` will give you the number of results and `rdf.get(0)` will give you the first result.
 
-You can create new triples based on the matches that you've found by passing a template to the `add()` method. For example, you can do:
+You can create new triples based on the results that you've found by passing a template to the `add()` method. For example, you can do:
 
 {{{
-rdf.add('?person foaf:depiction ?photo')
+rdf
+  .add('?person foaf:depiction ?photo')
   .add('?photo a foaf:Image');
 }}}
 
-This will add triples for every photo, saying that it is a depiction of the given person (based on the fact that foaf:depiction is the inverse of foaf:depicts) and that it is a foaf:Image (based on the fact that the range of foaf:depicts if foaf:Image). This facility allows you to do basic reasoning with rdfQuery.
+This will add triples for every photo, saying that it is a depiction of the given person (based on the fact that `foaf:depiction` is the inverse of `foaf:depicts`) and that it is a `foaf:Image` (based on the fact that the range of `foaf:depicts` is `foaf:Image`). This facility allows you to do basic reasoning with rdfQuery.
 
-You can get hold of the bindings and triples directly using `rdf.bindings()` and `rdf.triples()`, each of which returns a jQuery object wrapped around the array of bindings and triples. For example, you can do:
-
-{{{
-photos = rdf.bindings().map(function () { return this.photo.uri; });
-}}}
-
-You can operate on each of the matches using `rdf.each()` and `rdf.map()`. Like the equivalent jQuery methods, `rdf.each()` performs a given callback function on each of the matches within the rdfQuery object, while `rdf.map()` creates a jQuery object that wraps an array generated by applying the callback function to each match in turn and concatenating the results. For example, you could do:
+You can get hold of the triples that were used to create the result objects directly using `rdf.sources()`, which returns a jQuery object wrapped around the array of arrays of triples. For example, you can do:
 
 {{{
-photos = rdf.map(function () { return this.bindings.photo.uri; });
+photos = rdf.sources().map(function () { return this.subject; });
 }}}
 
-and it would give you exactly the same results as you get using `rdf.bindings().map()` as shown above.
+You can operate on each of the result objects in turn using `each()` and `map()`. Like the equivalent jQuery methods, `each()` performs a given callback function on each of the results within the rdfQuery object, while `map()` creates a jQuery object that wraps an array generated by applying the callback function to each query result in turn and concatenating the results. For example, you could do:
+
+{{{
+photos = rdf.map(function () { return this.photo.uri; });
+}}}
+
+The callback functions for `each()` and `map()` take three arguments: the position of the result amongst the other results, the result object itself, and an array of the triples that were used to create the result object. `this` is always bound to the result object itself. (These arguments are the same as those used in the `filter()` callback function.)
 
 Finally, you can simply generate a jQuery object based on the rdfQuery object, using `rdf.jquery()`. The full set of jQuery methods are then available to you.
