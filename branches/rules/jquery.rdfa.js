@@ -24,7 +24,7 @@
 
     getAttribute = function (elem, attr) {
       var val = elem.attr(attr);
-      if (/rev|rel|lang/.test(attr)) {
+      if (attr === 'rev' || attr === 'rel' || attr === 'lang') {
         return val === '' ? undefined : val;
       } else {
         return val;
