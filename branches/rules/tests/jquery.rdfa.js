@@ -24,6 +24,21 @@ function testTriples (received, expected) {
 	}
 };
 
+module("Performance Tests");
+
+test("Performance Test", function () {
+  var i, main = $('#main');
+  for (i = 0; i < 100; i += 1) {
+    main.append('<p about="photo' + i + '.jpg" property="foaf:depicts" resource="person' + i + '">Paragraph ' + i + '</p>');
+  }
+  var t1 = new Date();
+  main.rdfa();
+  var t2 = new Date();
+  var d = t2 - t1;
+  ok(d < 1000, "it should parse in less than a second: " + d);
+  $('#main > *').remove();
+});
+
 module("RDF Gleaner");
 
 test("Test 0001", function() {
