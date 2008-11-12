@@ -27,7 +27,7 @@
               ns[prefix] = $.uri(a.nodeValue);
             }
           }
-          ns = $.extend(elem.parents().length > 0 ? elem.parent().xmlns() : {}, ns);
+          ns = $.extend({}, elem.parents().length > 0 ? elem.parent().xmlns() : {}, ns);
           elem.data('xmlns', ns);
         }
         return ns;
