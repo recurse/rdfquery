@@ -60,73 +60,55 @@
     },
 
     getObjectResource = function (elem, context, relation) {
-      var r, 
-        atts = context.atts;
-        resource = elem.data('rdfa.objectResource');
-      if (resource === undefined || relation !== undefined) {
-        atts = atts === undefined ? getAttributes(elem) : atts;
-        r = relation === undefined ? atts['rel'] !== undefined || atts['rev'] !== undefined : relation;
-        resource = atts['resource'];
-        resource = resource === undefined ? atts['href'] : resource;
-        if (resource === undefined) {
-          resource = r ? $.rdf.blank('[]') : resource;
-        } else {
-          resource = resourceFromSafeCurie(resource, elem);
-        }
-        if (relation === undefined) {
-          elem.data('rdfa.objectResource', resource);
-        }
+      var r, resource, atts;
+      context = context || {};
+      atts = context.atts || getAttributes(elem);
+      r = relation === undefined ? atts.rel !== undefined || atts.rev !== undefined : relation;
+      resource = atts.resource;
+      resource = resource === undefined ? atts.href : resource;
+      if (resource === undefined) {
+        resource = r ? $.rdf.blank('[]') : resource;
+      } else {
+        resource = resourceFromSafeCurie(resource, elem);
       }
       return resource;
     },
 
     getSubject = function (elem, context, relation) {
-      var r, 
-        context = context || {},
-        atts = context.atts,
-        subject = elem.data('rdfa.subject');
-      if (subject === undefined || relation !== undefined) {
-        atts = atts === undefined ? getAttributes(elem) : atts;
-        r = relation === undefined ? atts['rel'] !== undefined || atts['rev'] !== undefined : relation;
-        subject = atts['about'];
-        subject = subject === undefined ? atts['src'] : subject;
-        if (!r) {
-          subject = subject === undefined ? atts['resource'] : subject;
-          subject = subject === undefined ? atts['href'] : subject;
-        }
-        if (subject === undefined) {
-          if (elem.is('head') || elem.is('body')) {
-            subject = $.rdf.resource('<>');
-          } else if (atts['typeof'] !== undefined) {
-            subject = $.rdf.blank('[]');
-          } else if (elem.parent().length > 0) {
-            subject = context.object || getObjectResource(elem.parent()) || getSubject(elem.parent());
-          } else {
-            subject = $.rdf.resource('<>');
-          }
+      var r, atts, subject;
+      context = context || {};
+      atts = context.atts || getAttributes(elem);
+      r = relation === undefined ? atts.rel !== undefined || atts.rev !== undefined : relation;
+      subject = atts.about;
+      subject = subject === undefined ? atts.src : subject;
+      if (!r) {
+        subject = subject === undefined ? atts.resource : subject;
+        subject = subject === undefined ? atts.href : subject;
+      }
+      if (subject === undefined) {
+        if (elem.is('head') || elem.is('body')) {
+          subject = $.rdf.resource('<>');
+        } else if (atts['typeof'] !== undefined) {
+          subject = $.rdf.blank('[]');
+        } else if (elem.parent().length > 0) {
+          subject = context.object || getObjectResource(elem.parent()) || getSubject(elem.parent());
         } else {
-          subject = resourceFromSafeCurie(subject, elem);
+          subject = $.rdf.resource('<>');
         }
-        if (relation === undefined) {
-          elem.data('rdfa.subject', subject);
-        }
+      } else {
+        subject = resourceFromSafeCurie(subject, elem);
       }
       return subject;
     },
     
     getLang = function (elem, context) {
-      var 
-        context = context || {},
-        atts = context.atts,
-        lang = elem.data('rdfa.lang');
-      if (lang === undefined) {
-        atts = atts || getAttributes(elem);
-        lang = atts['xml:lang'];
-        lang = lang === undefined ? atts['lang'] : lang;
-        if (lang === undefined && elem.parents().length > 0) {
-          lang = getLang(elem.parent());
-        }
-        elem.data('rdfa.lang', lang);
+      var atts, lang;
+      context = context || {};
+      atts = context.atts || getAttributes(elem);
+      lang = atts['xml:lang'];
+      lang = lang === undefined ? atts.lang : lang;
+      if (lang === undefined && elem.parents().length > 0) {
+        lang = getLang(elem.parent());
       }
       return lang;
     },
@@ -143,7 +125,7 @@
     },
 
     serialize = function (elem) {
-      var string = '', atts, a, name, ns;
+      var i, string = '', atts, a, name, ns;
       elem.contents().each(function () {
         var j = $(this),
           e = j[0];
@@ -152,7 +134,7 @@
           ns = j.xmlns('');
           atts = e.attributes;
           string += '<' + name;
-          for (var i = 0; i < e.attributes.length; i += 1) {
+          for (i = 0; i < e.attributes.length; i += 1) {
             a = atts.item(i);
             string += ' ' + a.nodeName + '="';
             string += a.nodeValue.replace(/[<"&]/g, entity);
@@ -171,14 +153,123 @@
       return string;
     },
     
+    rdfa = function (context) {
+      var i, subject, value, resource, lang, datatype, content, 
+        types, object, triple, parent,
+        properties, rels, revs, forward, backward,
+        triples = [],
+        atts = getAttributes(this);
+      context = context || {};
+      forward = context.forward || [];
+      backward = context.backward || [];
+      context.atts = atts;
+      subject = getSubject(this, context);
+      if (forward.length > 0 || backward.length > 0) {
+        parent = context.subject || getSubject(this.parent());
+        for (i = 0; i < forward.length; i += 1) {
+          triple = $.rdf.triple(parent, forward[i], subject);
+          triples.push(triple);
+        }
+        for (i = 0; i < backward.length; i += 1) {
+          triple = $.rdf.triple(subject, backward[i], parent);
+          triples.push(triple);
+        }
+      }
+      resource = getObjectResource(this, context);
+      types = atts['typeof'];
+      if (types !== undefined) {
+        types = types.split(/\s+/);
+        for (i = 0; i < types.length; i += 1) {
+          if (types[i] !== '') {
+            triple = $.rdf.triple(subject, $.rdf.type, resourceFromCurie(types[i], this), { source: this[0] });
+            triples.push(triple);
+          }
+        } 
+      }
+      properties = atts.property;
+      if (properties !== undefined) {
+        datatype = atts.datatype;
+        content = atts.content;
+        if (datatype !== undefined && datatype !== '') {
+          datatype = this.curie(datatype);
+          if (datatype === rdfXMLLiteral) {
+            object = $.rdf.literal(serialize(this), { datatype: rdfXMLLiteral });
+          } else if (content !== undefined) {
+            object = $.rdf.literal(content, { datatype: datatype });
+          } else {
+            object = $.rdf.literal(this.text(), { datatype: datatype });
+          }
+        } else if (content !== undefined) {
+          lang = getLang(this, context);
+          if (lang === undefined) {
+            object = $.rdf.literal('"' + content + '"');
+          } else {
+            object = $.rdf.literal(content, { lang: lang });
+          }
+        } else if (this.children('*').length === 0 ||
+                   datatype === '') {
+          lang = getLang(this, context);
+          if (lang === undefined) {
+            object = $.rdf.literal('"' + this.text() + '"');
+          } else {
+            object = $.rdf.literal(this.text(), { lang: lang });
+          }
+        } else {
+          object = $.rdf.literal(serialize(this), { datatype: rdfXMLLiteral });
+        }
+        properties = properties.split(/\s+/);
+        for (i = 0; i < properties.length; i += 1) {
+          if (properties[i] !== '') {
+            triple = $.rdf.triple(subject, resourceFromCurie(properties[i], this), object, { source: this[0] });
+            triples.push(triple);
+          }
+        }
+      }
+      rels = atts.rel;
+      if (rels !== undefined) {
+        rels = $.trim(rels).split(/\s+/);
+        for (i = 0; i < rels.length; i += 1) {
+          rels[i] = resourceFromCurie(rels[i], this);
+        } 
+      }
+      revs = atts.rev;
+      if (revs !== undefined) {
+        revs = $.trim(revs).split(/\s+/);
+        for (i = 0; i < revs.length; i += 1) {
+          revs[i] = resourceFromCurie(revs[i], this);
+        } 
+      }
+      if (atts.resource !== undefined || atts.href !== undefined) {
+        // make the triples immediately
+        if (rels !== undefined) {
+          for (i = 0; i < rels.length; i += 1) {
+            triple = $.rdf.triple(subject, rels[i], resource, { source: this[0] });
+            triples.push(triple);
+          }
+        }
+        rels = [];
+        if (revs !== undefined) {
+          for (i = 0; i < revs.length; i += 1) {
+            triple = $.rdf.triple(resource, revs[i], subject, { source: this[0] });
+            triples.push(triple);
+          }
+        }
+        revs = [];
+      }
+      this.children().each(function () {
+        triples = triples.concat(rdfa.call($(this), { forward: rels, backward: revs, subject: subject, object: resource || subject }));
+      });
+      return triples;
+    },
+    
     gleaner = function (options) {
       var type, 
         atts = getAttributes(this);
       if (options && options.about !== undefined) {
         if (options.about === null) {
-          return atts['property'] !== undefined || 
-                 atts['rel'] !== undefined || 
-                 atts['rev'] !== undefined || 
+          return atts.property !== undefined || 
+                 atts.rel !== undefined || 
+                 atts.rev !== undefined || 
                  atts['typeof'] !== undefined;
         } else {
           return getSubject(this, {atts: atts}).uri === options.about;
@@ -192,122 +283,6 @@
       } else {
         return rdfa.call(this);
       }
-    },
-    
-    rdfa = function (context) {
-      var i, subject, value, resource, lang, datatype, types, object, triple, parent,
-        properties, rels, revs, triples = [],
-        atts,
-        local = this.data('rdfa.triples');
-      context = context || {};
-      forward = context.forward || [];
-      backward = context.backward || [];
-      if (forward.length > 0 || backward.length > 0) {
-        atts = getAttributes(this);
-        context['atts'] = atts;
-        subject = getSubject(this, context);
-        parent = context.subject || getSubject(this.parent());
-        for (i = 0; i < forward.length; i += 1) {
-          triple = $.rdf.triple(parent, forward[i], subject);
-          triples.push(triple);
-        }
-        for (i = 0; i < backward.length; i += 1) {
-          triple = $.rdf.triple(subject, backward[i], parent);
-          triples.push(triple);
-        }
-      }
-      if (local === undefined) {
-        local = [];
-        atts = getAttributes(this);
-        context['atts'] = atts;
-        subject = getSubject(this, context);
-        resource = getObjectResource(this, context);
-        types = atts['typeof'];
-        if (types !== undefined) {
-          types = types.split(/\s+/);
-          for (i = 0; i < types.length; i += 1) {
-            if (types[i] !== '') {
-              triple = $.rdf.triple(subject, $.rdf.type, resourceFromCurie(types[i], this), { source: this[0] });
-              local.push(triple);
-            }
-          } 
-        }
-        properties = atts['property'];
-        if (properties !== undefined) {
-          datatype = atts['datatype'];
-          content = atts['content'];
-          if (datatype !== undefined && datatype !== '') {
-            datatype = this.curie(datatype);
-            if (datatype === rdfXMLLiteral) {
-              object = $.rdf.literal(serialize(this), { datatype: rdfXMLLiteral });
-            } else if (content !== undefined) {
-              object = $.rdf.literal(content, { datatype: datatype });
-            } else {
-              object = $.rdf.literal(this.text(), { datatype: datatype });
-            }
-          } else if (content !== undefined) {
-            lang = getLang(this, context);
-            if (lang === undefined) {
-              object = $.rdf.literal('"' + content + '"');
-            } else {
-              object = $.rdf.literal(content, { lang: lang });
-            }
-          } else if (this.children('*').length === 0 ||
-                     datatype === '') {
-            lang = getLang(this, context);
-            if (lang === undefined) {
-              object = $.rdf.literal('"' + this.text() + '"');
-            } else {
-              object = $.rdf.literal(this.text(), { lang: lang });
-            }
-          } else {
-            object = $.rdf.literal(serialize(this), { datatype: rdfXMLLiteral });
-          }
-          properties = properties.split(/\s+/);
-          for (i = 0; i < properties.length; i += 1) {
-            if (properties[i] !== '') {
-              triple = $.rdf.triple(subject, resourceFromCurie(properties[i], this), object, { source: this[0] });
-              local.push(triple);
-            }
-          }
-        }
-        rels = atts['rel'];
-        if (rels !== undefined) {
-          rels = $.trim(rels).split(/\s+/);
-          for (i = 0; i < rels.length; i += 1) {
-            rels[i] = resourceFromCurie(rels[i], this);
-          } 
-        }
-        revs = atts['rev'];
-        if (revs !== undefined) {
-          revs = $.trim(revs).split(/\s+/);
-          for (i = 0; i < revs.length; i += 1) {
-            revs[i] = resourceFromCurie(revs[i], this);
-          } 
-        }
-        if (atts['resource'] !== undefined || atts['href'] !== undefined) {
-          // make the triples immediately
-          if (rels !== undefined) {
-            for (i = 0; i < rels.length; i += 1) {
-              triple = $.rdf.triple(subject, rels[i], resource, { source: this[0] });
-              local.push(triple);
-            }
-          }
-          rels = [];
-          if (revs !== undefined) {
-            for (i = 0; i < revs.length; i += 1) {
-              triple = $.rdf.triple(resource, revs[i], subject, { source: this[0] });
-              local.push(triple);
-            }
-          }
-          revs = [];
-        }
-        this.children().each(function () {
-          local = local.concat(rdfa.call($(this), { forward: rels, backward: revs, subject: subject, object: resource || subject }));
-        });
-        this.data('rdfa.triples', local);
-      }
-      return triples.concat(local);
     },
     
     nsCounter = 1,
@@ -340,7 +315,7 @@
     createResourceAttr = function (elem, attr, resource) {
       var ref;
       if (resource.blank) {
-        ref = '[_:' + resource.id + ']'
+        ref = '[_:' + resource.id + ']';
       } else {
         ref = $.uri.base().relative(resource.uri);
       }
@@ -390,12 +365,12 @@
         }
         return this;
       }
-      hasRelation = atts['rel'] !== undefined || atts['rev'] !== undefined;
-      hasRDFa = hasRelation || atts['property'] !== undefined || atts['typeof'] !== undefined;
+      hasRelation = atts.rel !== undefined || atts.rev !== undefined;
+      hasRDFa = hasRelation || atts.property !== undefined || atts['typeof'] !== undefined;
       if (triple.object.resource) {
         subject = getSubject(this, {atts: atts}, true);
         object = getObjectResource(this, {atts: atts}, true);
-        overridableObject = !hasRDFa && atts['resource'] === undefined;
+        overridableObject = !hasRDFa && atts.resource === undefined;
         sameSubject = subject === triple.subject;
         sameObject = object === triple.object;
         if (triple.property === $.rdf.type) {
@@ -420,7 +395,7 @@
             createObjectAttr(this, triple.object);
           } else {
             span = this.wrap('<span />').parent();
-            createCurieAttr(span, 'rev', triple.property.uri)
+            createCurieAttr(span, 'rev', triple.property.uri);
             createSubjectAttr(span, triple.object);
           }
         } else if (subject === triple.object) {
@@ -488,8 +463,8 @@
         object = getObjectResource(this, {atts: atts});
         sameSubject = subject === triple.subject;
         hasContent = this.text() !== triple.object.value;
-        if (atts['property'] !== undefined) {
-          content = atts['content'];
+        if (atts.property !== undefined) {
+          content = atts.content;
           sameObject = content !== undefined ? content === triple.object.value : !hasContent;
           if (sameSubject && sameObject) {
             createCurieAttr(this, 'property', triple.property.uri);
