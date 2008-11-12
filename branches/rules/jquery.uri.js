@@ -16,6 +16,7 @@
 		pathRegex = /^([^?#]*)(.*)$/,
 		queryRegex = /^\?([^#]*)(.*)$/,
 		fragmentRegex = /^#(.*)$/,
+		docURI,
 
     parseURI = function (u) {
       var m = u.match(uriRegex);
@@ -245,9 +246,11 @@
 	  return $.uri(base, {}).relative(absolute);
 	};
 	
+	docURI = $.uri.absolute(document.URL);
+	
 	$.uri.base = function () {
-		var base = $('head > base').attr('href');
-		return base === undefined ? $.uri.absolute(document.URL) : $.uri(base, document.URL);
+	  var base = $('head > base').attr('href');
+  	return base === undefined ? docURI : $.uri(base, docURI);
 	};
 
 })(jQuery);

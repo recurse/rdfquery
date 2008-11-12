@@ -23,12 +23,11 @@
     rdfXMLLiteral = ns.rdf + 'XMLLiteral',
 
     getAttribute = function (elem, attr) {
-      var val = elem.attr(attr);
+      var val = elem[0].getAttribute(attr);
       if (attr === 'rev' || attr === 'rel' || attr === 'lang') {
-        return val === '' ? undefined : val;
-      } else {
-        return val;
+        val = val === '' ? undefined : val;
       }
+      return val === null ? undefined : val;
     },
 
     resourceFromUri = function (uri) {
@@ -66,8 +65,10 @@
       return resource;
     },
 
-    getSubject = function (elem, relation) {
-      var r, subject = elem.data('rdfa.subject');
+    getSubject = function (elem, context, relation) {
+      var r, 
+        subject = elem.data('rdfa.subject'),
+        context = context || {};
       if (subject === undefined || relation !== undefined) {
         r = relation === undefined ? getAttribute(elem, 'rel') !== undefined || getAttribute(elem, 'rev') !== undefined : relation;
         subject = getAttribute(elem, 'about');
@@ -82,7 +83,7 @@
           } else if (getAttribute(elem, 'typeof') !== undefined) {
             subject = $.rdf.blank('[]');
           } else if (elem.parent().length > 0) {
-            subject = getObjectResource(elem.parent()) || getSubject(elem.parent());
+            subject = context.object || getObjectResource(elem.parent()) || getSubject(elem.parent());
           } else {
             subject = $.rdf.resource('<>');
           }
@@ -97,10 +98,14 @@
     },
     
     getLang = function (elem) {
-      var lang = getAttribute(elem, 'xml:lang');
-      lang = lang === undefined ? getAttribute(elem, 'lang') : lang;
-      if (lang === undefined && elem.parent().length > 0) {
-        return getLang(elem.parent());
+      var lang = elem.data('rdfa.lang');
+      if (lang === undefined) {
+        lang = getAttribute(elem, 'xml:lang');
+        lang = lang === undefined ? getAttribute(elem, 'lang') : lang;
+        if (lang === undefined && elem.parents().length > 0) {
+          lang = getLang(elem.parent());
+        }
+        elem.data('rdfa.lang', lang);
       }
       return lang;
     },
@@ -174,9 +179,9 @@
       context = context || {};
       forward = context.forward || [];
       backward = context.backward || [];
+      subject = getSubject(this, context);
       if (forward.length > 0 || backward.length > 0) {
-        subject = getSubject(this);
-        parent = getSubject(this.parent());
+        parent = context.subject || getSubject(this.parent());
         for (i = 0; i < forward.length; i += 1) {
           triple = $.rdf.triple(parent, forward[i], subject);
           triples.push(triple);
@@ -188,7 +193,6 @@
       }
       if (local === undefined) {
         local = [];
-        subject = getSubject(this);
         resource = getObjectResource(this);
         types = getAttribute(this, 'typeof');
         if (types !== undefined) {
@@ -266,7 +270,7 @@
           revs = [];
         }
         this.children().each(function () {
-          local = local.concat(rdfa.call($(this), { forward: rels, backward: revs }));
+          local = local.concat(rdfa.call($(this), { forward: rels, backward: revs, subject: subject, object: resource || subject }));
         });
         this.data('rdfa.triples', local);
       }
@@ -355,7 +359,7 @@
       hasRelation = getAttribute(this, 'rel') !== undefined || getAttribute(this, 'rev') !== undefined;
       hasRDFa = hasRelation || getAttribute(this, 'property') !== undefined || getAttribute(this, 'typeof') !== undefined;
       if (triple.object.resource) {
-        subject = getSubject(this, true);
+        subject = getSubject(this, {}, true);
         object = getObjectResource(this, true);
         overridableObject = !hasRDFa && getAttribute(this, 'resource') === undefined;
         sameSubject = subject === triple.subject;

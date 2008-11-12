@@ -26,10 +26,10 @@ function testTriples (received, expected) {
 
 module("Performance Tests");
 
-test("Performance Test", function () {
+test("multiple elements with about and property attributes", function () {
   var i, main = $('#main');
   for (i = 0; i < 100; i += 1) {
-    main.append('<p about="photo' + i + '.jpg" property="foaf:depicts" resource="person' + i + '">Paragraph ' + i + '</p>');
+    main.append('<p about="bPerson' + i + '" property="foaf:name">Person ' + i + '</p>');
   }
   var t1 = new Date();
   main.rdfa();
@@ -37,7 +37,23 @@ test("Performance Test", function () {
   var d = t2 - t1;
   ok(d < 1000, "it should parse in less than a second: " + d);
   $('#main > *').remove();
+  $('#main').removeData('rdfa.triples');
 });
+
+test("multiple elements with about, rel and resource attributes", function () {
+  var i, main = $('#main');
+  for (i = 0; i < 100; i += 1) {
+    main.append('<p about="photo' + i + '.jpg" rel="foaf:depicts" resource="aPerson' + i + '">Paragraph ' + i + '</p>');
+  }
+  var t1 = new Date();
+  main.rdfa();
+  var t2 = new Date();
+  var d = t2 - t1;
+  ok(d < 1000, "it should parse in less than a second: " + d);
+  $('#main > *').remove();
+  $('#main').removeData('rdfa.triples');
+});
+
 
 module("RDF Gleaner");
 
