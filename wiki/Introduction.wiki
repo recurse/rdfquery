@@ -8,6 +8,8 @@ This project is for plugins for [http://jquery.com/ jQuery] that enable you to g
   * to provide a way of querying and manipulating RDF triples within Javascript that is as intuitive as jQuery is for querying and manipulating a DOM
   * to provide a way of gleaning RDF from elements within a web page, whether that RDF is represented as [http://www.w3.org/TR/xhtml-rdfa-primer/ RDFa] or with a [http://microformats.org microformat].
 
+If you want to get an idea of what rdfQuery can help you with read this description of [http://www.jenitennison.com/blog/node/94 using rdfQuery for progressive enhancement of web pages] and take a look at the [http://rdfquery.googlecode.com/svn/trunk/demos/markup/markup.html markup demo] that it describes.
+
 = The Plugins =
 
 Processing RDF embedded within web pages involves using a large number of other technologies that aren't particularly well supported in Javascript or jQuery. Some of these plugins may be useful even if you're not using RDF. The plugins are:
