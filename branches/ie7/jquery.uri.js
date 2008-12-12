@@ -181,7 +181,7 @@
     return $.uri(base, {}).relative(absolute);
   };
   
-  docURI = $.uri.absolute(document.URL);
+  docURI = $.uri.absolute(document.location.href);
   
   $.uri.base = function () {
     var base = $('head > base').attr('href');
