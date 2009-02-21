@@ -99,13 +99,14 @@ $.rdf.triple(
   $.rdf.literal(42))
 }}}
 
-The three kinds of values that you can use for subjects, properties and objects are:
+The three kinds of values that you can use for subjects, properties and objects are shown in the following table. Every value has a `type` and a `value` property:
 
-  * blank nodes, which have an `id`
-  * resources, which have a `uri`
-  * literals, which have a `value` and may have a `datatype` (which is a URI) or a `lang`
+|| *kind* || `type` || `value` || *example* ||
+|| resource || `uri` || URI || `"http://example.org/ns/price"` ||
+|| literal || `literal` || string value || `"42"` ||
+|| blank node || `bnode` || QName || `"_:book1"` ||
 
-The property `resource` is true if the value is a resource, and the property `blank` is true if the value is a blank node. For example, you could use `triple.subject.blank` to test whether the subject of a triple is a blank node.
+Literal values can also have extra properties: `datatype` (which is a URI) or `lang`.
 
 = Creating a Triple Store From HTML =
 
@@ -134,7 +135,7 @@ Gleaners can be added on an adhoc basis within plugins. For example, to add RDFa
 $.rdf.gleaners.push(rdfa);
 }}}
 
-where `rdfa` is a reference to a function that does the gleaning. Have a look at `jquery.rdfa.js` to see this in more detail. Additional gleaners could be written for microformats, for example.
+where `rdfa` is a reference to a function that does the gleaning. Have a look at `jquery.rdfa.js` to see this in more detail. Additional gleaners have been written for microformats, for example.
 
 = Querying RDF =
 
@@ -365,3 +366,104 @@ photos = rdf.map(function () { return this.photo.uri; });
 The callback functions for `each()` and `map()` take three arguments: the position of the result amongst the other results, the result object itself, and an array of the triples that were used to create the result object. `this` is always bound to the result object itself. (These arguments are the same as those used in the `filter()` callback function.)
 
 Finally, you can simply generate a jQuery object based on the rdfQuery object, using `rdf.jquery()`. The full set of jQuery methods are then available to you.
+
+= Exporting =
+
+If you get hold of an array of triples, for example through the `sources()` method on an rdfQuery object or the `triples()` method on a databank, you can export them as [http://n2.talis.com/wiki/RDF_JSON_Specification RDF/JSON] using the `$.rdf.export()` function. Databanks can also be exported using the `export()` method.
+
+For example, if you have:
+
+{{{
+var books = $.rdf.databank()
+  .prefix('foaf', 'http://xmlns.com/foaf/0.1/')
+  .prefix('dc', 'http://purl.org/dc/elements/1.1/')
+  .prefix('dct', 'http://purl.org/dc/terms/')
+  .prefix('xsd', 'http://www.w3.org/2001/XMLSchema#')
+  .add('<http://example.com/aReallyGreatBook> dc:title "A Really Great Book" .')
+  .add('<http://example.com/aReallyGreatBook> dc:creator _:creator .')
+  .add('_:creator a foaf:Person .')
+  .add('_:creator foaf:name "John Doe" .')
+  .add('<http://example.com/aReallyGreatBook> dct:issued "2004-01-19"^^xsd:date .')
+}}}
+
+then you can do:
+
+{{{
+var json = books.export();
+}}}
+
+and `json` will hold the object:
+
+{{{
+{
+  'http://example.com/aReallyGreatBook': {
+    'http://purl.org/dc/elements/1.1/title': [ { type: 'literal', value: 'A Really Great Book' } ],
+    'http://purl.org/dc/elements/1.1/creator': [ { type: 'bnode', value: '_:creator' } ],
+    'http://purl.org/dc/terms/issued': [ { type: 'literal', value: '2004-01-19', 
+                                           datatype: 'http://www.w3.org/2001/XMLSchema#date } ]
+  },
+  '_:creator': {
+    'http://www.w3.org/1999/02/22-rdf-syntax-ns#type': [ { type: 'uri', value: 'http://xmlns.com/foaf/0.1/Person' } ],
+    'http://xmlns.com/foaf/0.1/name': [ { type: 'literal', value: 'John Doe' } ]
+  }
+}
+}}}
+
+This isn't actually JSON, but a Javascript object that you can turn into JSON using something like [http://code.google.com/p/jquery-json/ jquery-json's] `$.toJSON()` function, and then submit it using:
+
+{{{
+$.ajax({
+  type: 'POST',
+  url: 'http://www.example.com/books/',
+  processData: false,
+  contentType: 'application/json',
+  data: $.toJSON(books.export())
+});
+}}}
+
+Another way of getting hold of a set of triples is the `describe()` method which, in technical terms, gives a [http://n2.talis.com/wiki/Bounded_Descriptions_in_RDF#Symmetric_Concise_Bounded_Description Symmetric Concise Bounded Description] of a set of resources. On a databank object, you can use `describe()` to provide triples for particular resource objects (or strings using the normal syntax for resources). On an rdfQuery object, `describe()` can also name particular variables. For example, if you did:
+
+{{{
+var bookQuery = $.rdf({ databank: books })
+  .where('?book dc:creator ?author');
+var triples = $.rdf.export(bookQuery.describe('?author'));
+}}}
+
+then `triples` would hold:
+
+{{{
+{
+  'http://example.com/aReallyGreatBook': {
+    'http://purl.org/dc/elements/1.1/creator': [ { type: 'bnode', value: '_:creator' } ],
+  },
+  '_:creator': {
+    'http://www.w3.org/1999/02/22-rdf-syntax-ns#type': [ { type: 'uri', value: 'http://xmlns.com/foaf/0.1/Person' } ],
+    'http://xmlns.com/foaf/0.1/name': [ { type: 'literal', value: 'John Doe' } ]
+  }
+}
+}}}
+
+The `select()` method on an rdfQuery object returns an array that contains objects representing the query bindings as Javascript objects. For example, given:
+
+{{{
+var bookQuery = $.rdf({ databank: books })
+  .where('?book dc:creator ?author');
+var bindings = bookQuery.select();
+}}}
+
+the `bindings` variable contains:
+
+{{{
+[
+  {
+    'book': { type: 'uri', value: 'http://example.com/aReallyGreatBook' },
+    'author': { type: 'bnode', value: '_:creator' }
+  }
+]
+}}}
+
+The names of the bindings that should be included can be passed in an array. For example:
+
+{{{
+var bindings = bookQuery.select(['author']);
+}}}
