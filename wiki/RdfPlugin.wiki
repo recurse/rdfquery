@@ -369,7 +369,7 @@ Finally, you can simply generate a jQuery object based on the rdfQuery object, u
 
 = Exporting =
 
-If you get hold of an array of triples, for example through the `sources()` method on an rdfQuery object or the `triples()` method on a databank, you can export them as [http://n2.talis.com/wiki/RDF_JSON_Specification RDF/JSON] using the `$.rdf.export()` function. Databanks can also be exported using the `export()` method.
+If you get hold of an array of triples, for example through the `sources()` method on an rdfQuery object or the `triples()` method on a databank, you can dump them as [http://n2.talis.com/wiki/RDF_JSON_Specification RDF/JSON] using the `$.rdf.dump()` function. Databanks can also be dumped using the `dump()` method.
 
 For example, if you have:
 
@@ -389,7 +389,7 @@ var books = $.rdf.databank()
 then you can do:
 
 {{{
-var json = books.export();
+var json = books.dump();
 }}}
 
 and `json` will hold the object:
@@ -417,16 +417,23 @@ $.ajax({
   url: 'http://www.example.com/books/',
   processData: false,
   contentType: 'application/json',
-  data: $.toJSON(books.export())
+  data: $.toJSON(books.dump())
 });
 }}}
+
+The `dump()` method can take an options argument which is an object with the following properties:
+
+  * **format**: the format of the dump as a mime type. Possible values are `'application/json'` (the default) and `'application/rdf+xml'`.
+  * **namespaces**: an object defining the namespace bindings that will be used in the dump. This is only relevant for XML-based formats. The prefix `rdf` is always bound to the RDF syntax namespace.
+  
+For XML-based formats, the `dump()` method actually returns a DOM document rather than a string.
 
 Another way of getting hold of a set of triples is the `describe()` method which, in technical terms, gives a [http://n2.talis.com/wiki/Bounded_Descriptions_in_RDF#Symmetric_Concise_Bounded_Description Symmetric Concise Bounded Description] of a set of resources. On a databank object, you can use `describe()` to provide triples for particular resource objects (or strings using the normal syntax for resources). On an rdfQuery object, `describe()` can also name particular variables. For example, if you did:
 
 {{{
 var bookQuery = $.rdf({ databank: books })
   .where('?book dc:creator ?author');
-var triples = $.rdf.export(bookQuery.describe('?author'));
+var triples = $.rdf.dump(bookQuery.describe('?author'));
 }}}
 
 then `triples` would hold:
