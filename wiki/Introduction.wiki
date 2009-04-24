@@ -20,3 +20,4 @@ Processing RDF embedded within web pages involves using a large number of other 
   * [CuriePlugin jquery.curie.js] for processing [http://www.w3.org/TR/curie/ CURIEs]
   * [RdfPlugin jquery.rdf.js] for storing and querying RDF triples
   * [RdfaPlugin jquery.rdfa.js] for generating RDF triples from RDFa
+  * [RdfRulesPlugin jquery.rules.js] for defining rules and reasoning over databanks
