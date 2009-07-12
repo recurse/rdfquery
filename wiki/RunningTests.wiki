@@ -8,6 +8,7 @@ The following assumes that you have the rdfquery package installed in $RDFQHOME.
   * Copy the [http://jqueryjs.googlecode.com/files/jquery-1.3.2.js jQuery 1.3.2 development javascript] into $RDFQHOME\jquery
   * Create the directory $RDFQHOME\jquery\tests\qunit
   * Copy the latest qunit [http://view.jquery.com/trunk/qunit/testrunner.js testrunner.js] and [http://view.jquery.com/trunk/qunit/testsuite.css testsuite.css] into $RDFQHOME\jquery\tests\qunit
+  * Copy the [http://jquery-json.googlecode.com/files/jquery.json-1.3.min.js jquery.json-1.3.min.js plugin code] into $RDFQHOME\jquery
 
 ==Running the tests==
 
