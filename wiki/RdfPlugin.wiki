@@ -154,7 +154,7 @@ $('#content')
   .where('?person a foaf:Person')
   .where('?person foaf:depiction ?picture')
   .optional('?person foaf:name ?name')
-  .each(function ()) {
+  .each(function () {
     var 
       person = this.person.value,
       picture = this.picture.value,
